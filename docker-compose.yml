@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: "workoutdb"
+    image: postgres:17
+    volumes:
+    #  first one is our port, second part is what docker uses
+      - "./database/postgres-data:/var/lib/postgresql/data"
+    ports:
+    #  first one is our port, second part is what docker uses
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    restart: unless-stopped

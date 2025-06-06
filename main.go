@@ -19,6 +19,8 @@ func main() {
 		// it's not recommended to use panic, there are other better ways
 		panic(err)
 	}
+	// defer tells the application that once everything is done, call this line
+	defer app.DB.Close()
 
 	r := routes.SetupRoutes(app)
 
