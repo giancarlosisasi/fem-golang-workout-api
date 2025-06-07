@@ -1,6 +1,9 @@
 package store
 
-import "database/sql"
+import (
+	"database/sql"
+	"time"
+)
 
 type Workout struct {
 	ID              int            `json:"id"`
@@ -9,6 +12,8 @@ type Workout struct {
 	DurationMinutes int            `json:"duration_minutes"`
 	CaloriesBurned  int            `json:"calories_burned"`
 	Entries         []WorkoutEntry `json:"entries"`
+	CreatedAt       time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 type WorkoutEntry struct {
@@ -22,6 +27,12 @@ type WorkoutEntry struct {
 	OrderIndex      int      `json:"order_index"`
 }
 
+type WorkoutStore interface {
+	CreateWorkout(*Workout) (*Workout, error)
+	GetWorkoutByID(int int64) (*Workout, error)
+	GetAllWorkouts() ([]Workout, error)
+}
+
 type PostgresWorkoutStore struct {
 	db *sql.DB
 }
@@ -30,9 +41,44 @@ func NewPostgresWorkoutStore(db *sql.DB) *PostgresWorkoutStore {
 	return &PostgresWorkoutStore{db: db}
 }
 
-type WorkoutStore interface {
-	CreateWorkout(*Workout) (*Workout, error)
-	GetWorkoutByID(int int64) (*Workout, error)
+func (pg *PostgresWorkoutStore) GetAllWorkouts() ([]Workout, error) {
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var workouts []Workout
+	query := `
+	SELECT * FROM workouts
+	`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var workout Workout
+		err := rows.Scan(&workout.ID, &workout.Title, &workout.Description, &workout.DurationMinutes, &workout.CaloriesBurned, &workout.CreatedAt, &workout.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		workouts = append(workouts, workout)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return workouts, nil
 }
 
 func (pg *PostgresWorkoutStore) CreateWorkout(workout *Workout) (*Workout, error) {
@@ -59,7 +105,7 @@ func (pg *PostgresWorkoutStore) CreateWorkout(workout *Workout) (*Workout, error
                 INSERT INTO workout_entries (workout_id, exercise_name, sets, reps, duration_seconds, weight, notes, order_index)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id`
-		err = tx.QueryRow(query, workout.ID, entry.ExerciseName, entry.Sets, entry.DurationSeconds, entry.Weight, entry.Notes, entry.OrderIndex).Scan(&entry.ID)
+		err = tx.QueryRow(query, workout.ID, entry.ExerciseName, entry.Sets, entry.Reps, entry.DurationSeconds, entry.Weight, entry.Notes, entry.OrderIndex).Scan(&entry.ID)
 		if err != nil {
 			return nil, err
 		}
