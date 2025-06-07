@@ -32,6 +32,8 @@ func NewApplication() (*Application, error) {
 
 	// our stores
 	workoutStore := store.NewPostgresWorkoutStore(pgDB)
+	// another example store
+	// workoutStore := store.NewMySQLWorkoutStore(pgdb)
 
 	// handlers
 	workoutHandler := api.NewWorkoutHandler(workoutStore, logger)
