@@ -102,12 +102,21 @@ func (pg *PostgresWorkoutStore) CreateWorkout(workout *Workout) (*Workout, error
 	}
 
 	// we also need to insert the entries
-	for _, entry := range workout.Entries {
+	for i, entry := range workout.Entries {
 		query := `
                 INSERT INTO workout_entries (workout_id, exercise_name, sets, reps, duration_seconds, weight, notes, order_index)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id`
-		err = tx.QueryRow(query, workout.ID, entry.ExerciseName, entry.Sets, entry.Reps, entry.DurationSeconds, entry.Weight, entry.Notes, entry.OrderIndex).Scan(&entry.ID)
+		err = tx.QueryRow(query,
+			workout.ID,
+			entry.ExerciseName,
+			entry.Sets,
+			entry.Reps,
+			entry.DurationSeconds,
+			entry.Weight,
+			entry.Notes,
+			entry.OrderIndex,
+		).Scan(&workout.Entries[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +192,7 @@ func (pg *PostgresWorkoutStore) UpdateWorkout(workout *Workout) error {
 	defer tx.Rollback()
 
 	query := `
-	UPDATE workouts 
+	UPDATE workouts
 	SET title = $1, description = $2, duration_minutes = $3, calories_burned = $4
 	WHERE id = $5
 	`
